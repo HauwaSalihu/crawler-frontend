@@ -28,7 +28,7 @@ export default function ResultsPageClient() {
     const fetchResults = async (id: string) => {
       setLoading(true);
       interval = setInterval(async () => {
-        const res2 = await fetch(`${API_URL}/api/results/${id}`);
+        const res2 = await fetch(`${API_URL}api/results/${id}`);
         const jobData = await res2.json();
         if ((jobData.results && jobData.results.length > 0) || (jobData.raw && jobData.raw.length > 0)) {
           setRaw(jobData.raw || []);
@@ -49,7 +49,7 @@ export default function ResultsPageClient() {
       if (!industry || !region) return;
 
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/search`, {
+      const res = await fetch(`${API_URL}api/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ industry, region }),
@@ -134,7 +134,7 @@ export default function ResultsPageClient() {
               const specificId = "68e23ed7fd6cd72f4bc53e29"; // replace with known jobId
               setJobId(specificId);
               setLoading(true);
-              fetch(`${API_URL}/api/results/${specificId}`)
+              fetch(`${API_URL}api/results/${specificId}`)
                 .then((res) => res.json())
                 .then((jobData) => {
                   setRaw(jobData.raw || []);

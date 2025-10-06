@@ -12,7 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
   useEffect(() => {
     const fetchPrevious = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/searches`);
+        const res = await fetch(`${API_URL}api/searches`);
         const data = await res.json();
         setPrevious(data || []);
       } catch (err) {
