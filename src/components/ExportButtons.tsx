@@ -14,15 +14,26 @@ import {
 
 type RawItem = Record<string, any>;
 
+// Normalized shape for export
+interface NormalizedItem {
+  company: string;
+  url: string;
+  emails: string;
+  phones: string;
+  ceo: string;
+  linkedinProfile: string;
+  [key: string]: string; // <-- allow string indexing
+}
+
 type ExportButtonsProps = {
-  data: RawItem[]; // we accept raw/enriched objects and normalize
+  data: RawItem[];
 };
 
 export default function ExportButtons({ data }: ExportButtonsProps) {
   if (!data || data.length === 0) return null;
 
   // Normalize a single item into the export shape
-  const normalize = (r: RawItem) => {
+  const normalize = (r: RawItem): NormalizedItem => {
     const company =
       r.title ||
       r.site?.company_name ||
@@ -33,7 +44,7 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
       "";
     const url = r.url || r.site?.url || r.link || r.website || "";
 
-    // emails: accept arrays or comma/semicolon strings
+    // emails
     let emailsArr: string[] = [];
     if (Array.isArray(r.site?.emails)) emailsArr = r.site.emails;
     else if (Array.isArray(r.emails)) emailsArr = r.emails;
@@ -41,7 +52,7 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
       emailsArr = r.site.emails.split(/[;,]\s*/);
     else if (typeof r.emails === "string") emailsArr = r.emails.split(/[;,]\s*/);
 
-    // phones: accept arrays or strings
+    // phones
     let phonesArr: string[] = [];
     if (Array.isArray(r.site?.phones)) phonesArr = r.site.phones;
     else if (Array.isArray(r.phones)) phonesArr = r.phones;
@@ -56,7 +67,6 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
 
     const ceo = r.linkedin?.ceo || r.ceo || r.site?.ceo || "";
 
-    // linkedinProfile: try multiple common places
     const linkedinProfile =
       r.linkedin?.profile ||
       r.linkedinProfile ||
@@ -75,14 +85,21 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
   };
 
   // Build normalized array
-  const formatted = data.map(normalize);
+  const formatted: NormalizedItem[] = data.map(normalize);
 
   // Column order and headers we want in the outputs
   const headers = ["Company", "Website", "Emails", "Phones", "CEO", "LinkedIn"];
-  const keys = ["company", "url", "emails", "phones", "ceo", "linkedinProfile"];
+  const keys: (keyof NormalizedItem)[] = [
+    "company",
+    "url",
+    "emails",
+    "phones",
+    "ceo",
+    "linkedinProfile",
+  ];
 
   // UTIL: escape for CSV
-  const quote = (v: any) =>
+  const quote = (v: unknown) =>
     `"${String(v ?? "").replace(/"/g, '""')}"`;
 
   // Export CSV
@@ -97,11 +114,10 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
     saveAs(blob, "companies.csv");
   };
 
-  // Export Excel (explicit column order using aoa_to_sheet to avoid column shuffling)
+  // Export Excel
   const exportExcel = () => {
     const rows = [headers, ...formatted.map((f) => keys.map((k) => f[k] ?? ""))];
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    // Optionally set column widths for better readability
     ws["!cols"] = [
       { wch: 30 }, // Company
       { wch: 40 }, // Website
@@ -119,7 +135,7 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
   const exportWord = async () => {
     const tableRows: TableRow[] = [];
 
-    // Header row (using widths summing close to 100)
+    // Header row
     tableRows.push(
       new TableRow({
         children: headers.map(
@@ -137,30 +153,12 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
       tableRows.push(
         new TableRow({
           children: [
-            new TableCell({
-              children: [new Paragraph(f.company || "")],
-              width: { size: 20, type: WidthType.PERCENTAGE },
-            }),
-            new TableCell({
-              children: [new Paragraph(f.url || "")],
-              width: { size: 20, type: WidthType.PERCENTAGE },
-            }),
-            new TableCell({
-              children: [new Paragraph(f.emails || "")],
-              width: { size: 20, type: WidthType.PERCENTAGE },
-            }),
-            new TableCell({
-              children: [new Paragraph(f.phones || "")],
-              width: { size: 15, type: WidthType.PERCENTAGE },
-            }),
-            new TableCell({
-              children: [new Paragraph(f.ceo || "")],
-              width: { size: 10, type: WidthType.PERCENTAGE },
-            }),
-            new TableCell({
-              children: [new Paragraph(f.linkedinProfile || "")],
-              width: { size: 15, type: WidthType.PERCENTAGE },
-            }),
+            new TableCell({ children: [new Paragraph(f.company)], width: { size: 20, type: WidthType.PERCENTAGE } }),
+            new TableCell({ children: [new Paragraph(f.url)], width: { size: 20, type: WidthType.PERCENTAGE } }),
+            new TableCell({ children: [new Paragraph(f.emails)], width: { size: 20, type: WidthType.PERCENTAGE } }),
+            new TableCell({ children: [new Paragraph(f.phones)], width: { size: 15, type: WidthType.PERCENTAGE } }),
+            new TableCell({ children: [new Paragraph(f.ceo)], width: { size: 10, type: WidthType.PERCENTAGE } }),
+            new TableCell({ children: [new Paragraph(f.linkedinProfile)], width: { size: 15, type: WidthType.PERCENTAGE } }),
           ],
         })
       );
@@ -183,25 +181,13 @@ export default function ExportButtons({ data }: ExportButtonsProps) {
 
   return (
     <div className="flex gap-3 mb-4">
-      <button
-        onClick={exportCSV}
-        className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800"
-        type="button"
-      >
+      <button onClick={exportCSV} className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800" type="button">
         Export CSV
       </button>
-      <button
-        onClick={exportExcel}
-        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-        type="button"
-      >
+      <button onClick={exportExcel} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700" type="button">
         Export Excel
       </button>
-      <button
-        onClick={exportWord}
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        type="button"
-      >
+      <button onClick={exportWord} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" type="button">
         Export Word
       </button>
     </div>
