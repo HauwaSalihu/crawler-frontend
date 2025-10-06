@@ -7,12 +7,12 @@ export default function HomePage() {
   const [region, setRegion] = useState("");
   const [previous, setPrevious] = useState<any[]>([]);
   const router = useRouter();
-
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
   // Fetch previous results
   useEffect(() => {
     const fetchPrevious = async () => {
       try {
-        const res = await fetch("http://localhost:5001/api/searches");
+        const res = await fetch(`${API_URL}/api/searches`);
         const data = await res.json();
         setPrevious(data || []);
       } catch (err) {
