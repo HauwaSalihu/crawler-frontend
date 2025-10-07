@@ -13,7 +13,7 @@ export default function ResultsPageClient() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [raw, setRaw] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
-  const [view, setView] = useState<"raw" | "results">("results");
+  const [view, setView] = useState<"raw" | "results">("raw");
   const [loading, setLoading] = useState(false);
 
   // Pagination state
