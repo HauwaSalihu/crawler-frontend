@@ -27,48 +27,19 @@ export default function ResultsPageClient() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout | null = null;
 
-    const fetchResults = async (id: string) => {
-      setLoading(true);
-      interval = setInterval(async () => {
-        const res2 = await fetch(`${API_URL}api/results/${id}`);
-        const jobData = await res2.json();
-
-        // Progressive enrichment progress estimation
-        if (jobData.raw && jobData.results) {
-          const total = jobData.raw.length;
-          const enriched = jobData.results.length;
-          if (total > 0) {
-            const percentage = Math.min(
-              Math.round((enriched / total) * 100),
-              100
-            );
-            setProgress(percentage);
-            setEnriching(percentage < 100);
-          }
-        }
-
-        if (
-          (jobData.results && jobData.results.length > 0) ||
-          (jobData.raw && jobData.raw.length > 0)
-        ) {
-          setRaw(jobData.raw || []);
-          setResults(jobData.results || []);
-          if (jobData.results && jobData.raw && jobData.results.length === jobData.raw.length) {
-            setEnriching(false);
-            setProgress(100);
-          }
-          setLoading(false);
-          if (!enriching) clearInterval(interval);
-        }
-      }, 4000);
-    };
-
+    // Initial search or fetch by jobId
     const handleSearch = async () => {
       if (jobIdParam) {
         setJobId(jobIdParam);
-        fetchResults(jobIdParam);
+        setLoading(true);
+        const jobData = await fetch(
+          `${API_URL}api/results/${jobIdParam}`
+        ).then((res) => res.json());
+        setRaw(jobData.raw || []);
+        setResults(jobData.results || []);
+        setLoading(false);
         return;
       }
 
@@ -82,7 +53,9 @@ export default function ResultsPageClient() {
       });
       const data = await res.json();
       setJobId(data.jobId);
-      fetchResults(data.jobId);
+      setLoading(false);
+      setRaw(data.raw || []);
+      setResults([]);
     };
 
     handleSearch();
@@ -90,7 +63,53 @@ export default function ResultsPageClient() {
     return () => {
       if (interval) clearInterval(interval);
     };
+    // eslint-disable-next-line
   }, [industry, region, jobIdParam]);
+
+  // Poll for enrichment only when viewing "results"
+  useEffect(() => {
+    if (!jobId || view !== "results") return;
+
+    setEnriching(true);
+    setLoading(true);
+
+    let interval: NodeJS.Timeout | null = null;
+
+    const pollEnrichment = async () => {
+      const jobData = await fetch(
+        `${API_URL}api/results/${jobId}`
+      ).then((res) => res.json());
+      setRaw(jobData.raw || []);
+      setResults(jobData.results || []);
+
+      // Progress calculation
+      const total = jobData.raw?.length || 0;
+      const enriched = jobData.results?.length || 0;
+      const percentage =
+        total > 0
+          ? Math.min(Math.round((enriched / total) * 100), 100)
+          : 0;
+      setProgress(percentage);
+
+      if (percentage >= 100 && enriched === total && total > 0) {
+        setEnriching(false);
+        setLoading(false);
+        setProgress(100);
+        if (interval) clearInterval(interval);
+      } else {
+        setEnriching(true);
+        setLoading(true);
+      }
+    };
+
+    // Start polling
+    pollEnrichment();
+    interval = setInterval(pollEnrichment, 4000);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [jobId, view]);
 
   const currentData = view === "raw" ? raw : results;
 
