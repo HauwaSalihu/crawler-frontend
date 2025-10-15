@@ -194,7 +194,22 @@ export default function ResultsPageClient() {
 
         {/* Results Display */}
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 mt-3 overflow-x-auto">
-          {loading ? (
+          {view === "results" && enriching ? (
+            <div className="flex flex-col items-center py-12 w-full">
+              <span className="text-blue-700 font-bold text-xl mb-2">Enriching results...</span>
+              <div className="w-full max-w-lg bg-gray-200 rounded h-4 mt-2 overflow-hidden">
+                <div
+                  className="bg-blue-500 h-4 transition-all duration-500"
+                  style={{ width: `${enrichProgress}%` }}
+                />
+              </div>
+              <span className="text-sm text-gray-600 mt-2">
+                {enrichProgress < 100
+                  ? `Progress: ${enrichProgress}% (up to 20 min)`
+                  : "Completed!"}
+              </span>
+            </div>
+          ) : loading ? (
             <div className="flex justify-center items-center py-12">
               <svg
                 className="animate-spin h-10 w-10 text-blue-600 mr-3"
