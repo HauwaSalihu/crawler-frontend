@@ -16,6 +16,10 @@ export default function ResultsPageClient() {
   const [view, setView] = useState<"raw" | "results">("raw");
   const [loading, setLoading] = useState(false);
 
+  // Progress state for enriched results
+  const [progress, setProgress] = useState(0);
+  const [enriching, setEnriching] = useState(false);
+
   // Pagination state
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -30,11 +34,33 @@ export default function ResultsPageClient() {
       interval = setInterval(async () => {
         const res2 = await fetch(`${API_URL}api/results/${id}`);
         const jobData = await res2.json();
-        if ((jobData.results && jobData.results.length > 0) || (jobData.raw && jobData.raw.length > 0)) {
+
+        // Progressive enrichment progress estimation
+        if (jobData.raw && jobData.results) {
+          const total = jobData.raw.length;
+          const enriched = jobData.results.length;
+          if (total > 0) {
+            const percentage = Math.min(
+              Math.round((enriched / total) * 100),
+              100
+            );
+            setProgress(percentage);
+            setEnriching(percentage < 100);
+          }
+        }
+
+        if (
+          (jobData.results && jobData.results.length > 0) ||
+          (jobData.raw && jobData.raw.length > 0)
+        ) {
           setRaw(jobData.raw || []);
           setResults(jobData.results || []);
+          if (jobData.results && jobData.raw && jobData.results.length === jobData.raw.length) {
+            setEnriching(false);
+            setProgress(100);
+          }
           setLoading(false);
-          clearInterval(interval);
+          if (!enriching) clearInterval(interval);
         }
       }, 4000);
     };
@@ -86,7 +112,14 @@ export default function ResultsPageClient() {
     return Array.from(keys);
   }, [currentData, view]);
 
-  const enrichedColumns = ["title", "url", "emails", "phones", "ceo", "linkedinProfile"];
+  const enrichedColumns = [
+    "title",
+    "url",
+    "emails",
+    "phones",
+    "ceo",
+    "linkedinProfile",
+  ];
 
   return (
     <div className="min-h-screen bg-blue-100 flex items-center justify-center py-8 px-2">
@@ -105,7 +138,9 @@ export default function ResultsPageClient() {
         <div className="flex gap-4 mb-6 justify-center">
           <button
             className={`px-6 py-2 rounded-xl font-semibold transition text-lg ${
-              view === "raw" ? "bg-blue-700 text-white shadow-lg" : "bg-white/70 text-blue-700 hover:bg-blue-100"
+              view === "raw"
+                ? "bg-blue-700 text-white shadow-lg"
+                : "bg-white/70 text-blue-700 hover:bg-blue-100"
             }`}
             onClick={() => {
               setView("raw");
@@ -116,7 +151,9 @@ export default function ResultsPageClient() {
           </button>
           <button
             className={`px-6 py-2 rounded-xl font-semibold transition text-lg ${
-              view === "results" ? "bg-blue-700 text-white shadow-lg" : "bg-white/70 text-blue-700 hover:bg-blue-100"
+              view === "results"
+                ? "bg-blue-700 text-white shadow-lg"
+                : "bg-white/70 text-blue-700 hover:bg-blue-100"
             }`}
             onClick={() => {
               setView("results");
@@ -153,6 +190,21 @@ export default function ResultsPageClient() {
 
         {/* Results Display */}
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 mt-3 overflow-x-auto">
+          {/* Enriched progressive loader */}
+          {view === "results" && enriching && (
+            <div className="w-full mb-4">
+              <div className="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
+                <div
+                  className="bg-blue-600 h-3 rounded-full transition-all duration-700 ease-in-out"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              <p className="text-sm font-medium text-blue-700 mt-1">
+                Enriching data... {progress}%
+              </p>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center items-center py-12">
               <svg
@@ -161,13 +213,26 @@ export default function ResultsPageClient() {
                 fill="none"
                 viewBox="0 0 24 24"
               >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                ></path>
               </svg>
               <span className="text-blue-700 font-bold text-xl">Loading...</span>
             </div>
           ) : currentData.length === 0 ? (
-            <p className="text-lg text-gray-500 text-center">No {view} results yet.</p>
+            <p className="text-lg text-gray-500 text-center">
+              No {view} results yet.
+            </p>
           ) : (
             <table className="min-w-full text-left table-fixed border border-gray-300 bg-white rounded-lg overflow-hidden">
               <thead className="bg-blue-600 text-white">
@@ -184,62 +249,77 @@ export default function ResultsPageClient() {
               </thead>
               <tbody>
                 {paginatedData.map((row, i) => (
-                  <tr key={i} className="border-t border-gray-200 hover:bg-gray-50">
-                    {(view === "raw" ? rawColumns : enrichedColumns).map((col) => {
-                      let value: any = row[col];
+                  <tr
+                    key={i}
+                    className="border-t border-gray-200 hover:bg-gray-50"
+                  >
+                    {(view === "raw" ? rawColumns : enrichedColumns).map(
+                      (col) => {
+                        let value: any = row[col];
 
-                      if (col === "emails") {
-                        value =
-                          row.site?.emails?.join(", ") ||
-                          row.emails?.join(", ") ||
-                          "N/A";
-                      }
+                        if (col === "emails") {
+                          value =
+                            row.site?.emails?.join(", ") ||
+                            row.emails?.join(", ") ||
+                            "N/A";
+                        }
 
-                      if (col === "phones") {
-                        value =
-                          row.site?.phones?.join(", ") ||
-                          row.phones?.join(", ") ||
-                          (row.site?.phone ? String(row.site.phone) : "") ||
-                          (row.phone ? String(row.phone) : "") ||
-                          "N/A";
-                      }
+                        if (col === "phones") {
+                          value =
+                            row.site?.phones?.join(", ") ||
+                            row.phones?.join(", ") ||
+                            (row.site?.phone
+                              ? String(row.site.phone)
+                              : "") ||
+                            (row.phone ? String(row.phone) : "") ||
+                            "N/A";
+                        }
 
-                      if (col === "ceo") {
-                        value = row.linkedin?.ceo || row.ceo || row.site?.ceo || "N/A";
-                      }
+                        if (col === "ceo") {
+                          value =
+                            row.linkedin?.ceo ||
+                            row.ceo ||
+                            row.site?.ceo ||
+                            "N/A";
+                        }
 
-                      if (col === "linkedinProfile") {
-                        const link =
-                          row.linkedin?.profile ||
-                          row.linkedinProfile ||
-                          row.site?.linkedin_page ||
-                          row.site?.linkedin ||
-                          "";
+                        if (col === "linkedinProfile") {
+                          const link =
+                            row.linkedin?.profile ||
+                            row.linkedinProfile ||
+                            row.site?.linkedin_page ||
+                            row.site?.linkedin ||
+                            "";
+                          return (
+                            <td
+                              key={col}
+                              className="px-4 py-2 text-sm text-blue-600 underline w-40 break-words"
+                            >
+                              {link ? (
+                                <a
+                                  href={link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {link}
+                                </a>
+                              ) : (
+                                "N/A"
+                              )}
+                            </td>
+                          );
+                        }
+
                         return (
                           <td
                             key={col}
-                            className="px-4 py-2 text-sm text-blue-600 underline w-40 break-words"
+                            className="px-4 py-2 text-sm text-gray-700 w-40 break-words"
                           >
-                            {link ? (
-                              <a href={link} target="_blank" rel="noreferrer">
-                                {link}
-                              </a>
-                            ) : (
-                              "N/A"
-                            )}
+                            {value || "N/A"}
                           </td>
                         );
                       }
-
-                      return (
-                        <td
-                          key={col}
-                          className="px-4 py-2 text-sm text-gray-700 w-40 break-words"
-                        >
-                          {value || "N/A"}
-                        </td>
-                      );
-                    })}
+                    )}
                   </tr>
                 ))}
               </tbody>
