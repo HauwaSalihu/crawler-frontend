@@ -15,6 +15,9 @@ export default function ResultsPageClient() {
   const [results, setResults] = useState<any[]>([]);
   const [view, setView] = useState<"raw" | "results">("raw");
   const [loading, setLoading] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState(0);
+  const ENRICH_TIMEOUT = 20 * 60 * 1000; // 20 minutes in ms
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -87,6 +90,44 @@ export default function ResultsPageClient() {
   }, [currentData, view]);
 
   const enrichedColumns = ["title", "url", "emails", "phones", "ceo", "linkedinProfile"];
+
+  useEffect(() => {
+    if (view !== "results" || !jobId) {
+      setEnriching(false);
+      setEnrichProgress(0);
+      return;
+    }
+
+    setEnriching(true);
+    setEnrichProgress(0);
+
+    let startTime = Date.now();
+    let interval = setInterval(async () => {
+      const res = await fetch(`${API_URL}api/results/${jobId}`);
+      const jobData = await res.json();
+
+      // Calculate progress based on enriched count vs raw count
+      const total = jobData.raw?.length || 0;
+      const enriched = jobData.results?.length || 0;
+      let percent = total > 0 ? Math.round((enriched / total) * 100) : 0;
+      setEnrichProgress(percent);
+
+      // If enrichment is complete, populate results and stop loader
+      if (percent >= 100 && enriched === total && total > 0) {
+        setResults(jobData.results || []);
+        setEnriching(false);
+        clearInterval(interval);
+      }
+
+      // Timeout after 20 minutes
+      if (Date.now() - startTime > ENRICH_TIMEOUT) {
+        setEnriching(false);
+        clearInterval(interval);
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [view, jobId, API_URL]);
 
   return (
     <div className="min-h-screen bg-blue-100 flex items-center justify-center py-8 px-2">
