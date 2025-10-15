@@ -15,7 +15,6 @@ export default function ResultsPageClient() {
   const [results, setResults] = useState<any[]>([]);
   const [view, setView] = useState<"raw" | "results">("raw");
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -25,20 +24,16 @@ export default function ResultsPageClient() {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    setProgress(0);
 
     const fetchResults = async (id: string) => {
       setLoading(true);
-      setProgress(10);
       interval = setInterval(async () => {
-        setProgress((prev) => (prev < 90 ? prev + 10 : prev)); // Simulate progress
         const res2 = await fetch(`${API_URL}api/results/${id}`);
         const jobData = await res2.json();
         if ((jobData.results && jobData.results.length > 0) || (jobData.raw && jobData.raw.length > 0)) {
           setRaw(jobData.raw || []);
           setResults(jobData.results || []);
           setLoading(false);
-          setProgress(100);
           clearInterval(interval);
         }
       }, 4000);
@@ -158,19 +153,17 @@ export default function ResultsPageClient() {
 
         {/* Results Display */}
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 mt-3 overflow-x-auto">
-          {loading && view === "results" ? (
-            <div className="flex flex-col items-center py-12 w-full">
-              <span className="text-blue-700 font-bold text-xl mb-2">Enriching results...</span>
-              <div className="w-full max-w-lg bg-gray-200 rounded h-4 mt-2 overflow-hidden">
-                <div
-                  className="bg-blue-500 h-4 transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <span className="text-sm text-gray-600 mt-2">{progress < 100 ? `Progress: ${progress}%` : "Completed!"}</span>
-            </div>
-          ) : loading ? (
+          {loading ? (
             <div className="flex justify-center items-center py-12">
+              <svg
+                className="animate-spin h-10 w-10 text-blue-600 mr-3"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+              </svg>
               <span className="text-blue-700 font-bold text-xl">Loading...</span>
             </div>
           ) : currentData.length === 0 ? (
