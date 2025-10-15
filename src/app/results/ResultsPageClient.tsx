@@ -17,7 +17,7 @@ export default function ResultsPageClient() {
   const [loading, setLoading] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState(0);
-  const ENRICH_TIMEOUT = 20 * 60 * 1000; // 20 minutes in ms
+  const ENRICH_TIMEOUT = 8 * 60 * 1000; // 8 minutes in ms
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -116,10 +116,11 @@ export default function ResultsPageClient() {
       if (percent >= 100 && enriched === total && total > 0) {
         setResults(jobData.results || []);
         setEnriching(false);
+        setEnrichProgress(100);
         clearInterval(interval);
       }
 
-      // Timeout after 20 minutes
+      // Timeout after 8 minutes
       if (Date.now() - startTime > ENRICH_TIMEOUT) {
         setEnriching(false);
         clearInterval(interval);
